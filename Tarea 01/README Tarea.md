@@ -10,6 +10,8 @@ Asesorar a un inversionista que busca maximizar sus oportunidades en el mercado 
 
 Los estudiantes elegirán uno de los conjuntos de datos y aplicarán una de las dos técnicas analizadas en clase: regresión o clustering. Los datos que puedes usar están disponibles en: https://drive.google.com/drive/folders/1tRHUCpZlN7jL2QUYOQm1xLnvw6TFLFw4?usp=sharing 
 
+La actividad se entrega en equipos (3-4 personas, recomendación). Fecha de entrega: 25 de julio de 2025.
+
 Estas son las dos opciones que puedes seguir:
 
 ## OPCIÓN 1: 📈 REGRESIÓN MÚLTIPLE O RESTRINGIDA
@@ -29,7 +31,7 @@ Un inversionista desea comprar propiedades para revenderlas tras mejoras o adqui
 • Evaluar métricas de desempeño (R², MAE, RMSE).
 • Justificar, en un informe, en qué ciudad o región se debería invertir con base en los resultados del modelo.
 
-## OPCIÓN 2: 🔍 CLUSTERING DE SERIES DE TIEMPO
+## OPCIÓN 2: 🔍 CLUSTERING
 
 ### 🎯 Objetivo Específico
 
