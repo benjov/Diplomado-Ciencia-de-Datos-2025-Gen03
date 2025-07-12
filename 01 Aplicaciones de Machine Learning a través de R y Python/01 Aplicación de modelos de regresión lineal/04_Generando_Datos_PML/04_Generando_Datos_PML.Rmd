@@ -1,0 +1,576 @@
+---
+title: "04_Conexión_ServicioWeb"
+author: "Benjamín Oliva"
+date: "2025-02-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE) # Valor predeterminado global para los encabezados de chunks
+#install.packages("rmarkdown")
+#library(rmarkdown)
+```
+
+# Ejemplo de consulta de Precios Marginales Locales
+
+* MDA: Mercado de día en adelanto
+* MTR: Mercado en tiempo real
+
+Fuente de datos: https://www.cenace.gob.mx/Paginas/SIM/Reportes/PreEnerServConMDA.aspx
+
+Usaremos el "Manual Técnico Uso de Servicio Web para descarga de Precios Marginales Locales (SW-PML)", https://www.cenace.gob.mx/DocsMEM/2022-06-24%20Manual%20T%C3%A9cnico%20SW-PML.pdf
+
+## Instalación de paquetaría
+
+```{r paquetes, include = TRUE, warning = FALSE, message = FALSE }
+#install.packages("plotly") # Paquetería de visualización interactiva
+#install.packages("httr") # Biblioteca que tiene funciones para consulta Web
+# Do you want to install from sources the package which needs compilation? (Yes/no/cancel) Y
+#install.packages("jsonlite") # Para manejo de archivos JSON
+#install.packages("DT") # Para manejo de tablas
+
+library(readxl)
+library(httr)
+library(dplyr)
+library(plotly) 
+library(jsonlite) 
+library(DT) 
+library(tidyr)
+```
+
+## Consulta:
+
+Consultaremos un conjunto de nodos ubicados en distintos puntos de México
+(la lista completa está en: https://www.cenace.gob.mx/Paginas/SIM/NodosP.aspx)
+
+IMPORTANTE: No se pueden mostrar datos con un lapso mayor a 7 dias y máximo 20 nodos
+
+```{r datos, echo=FALSE}
+
+response <- GET( 'https://www.cenace.gob.mx/Docs/01_MECP/CatalogoNodosP/2024/Cata%CC%81logo%20NodosP%20Sistema%20Ele%CC%81ctrico%20Nacional%20(v2024-01-24)%20.xlsx' )
+
+temp_file <- tempfile(fileext = ".xlsx")
+
+writeBin(content(response, "raw"), temp_file)
+
+datos <- read_excel(temp_file, sheet = 1, skip = 1)
+
+datos <- datos %>% filter(SISTEMA == 'SIN')
+
+```
+
+```{r nodos, echo=FALSE}
+
+set.seed(1234) # Personalizar
+
+Datos_Nodos <- datos[ sample( nrow( datos ), 120, replace = FALSE), ]
+
+```
+
+```{r Grupo01, echo=FALSE}
+
+Datos_PML_01 <- data.frame()
+
+for( Nodo in Datos_Nodos$CLAVE ){
+  # Definir los parámetros de la URL
+  sistema <- "SIN"
+  proceso <- "MDA"
+  lista_nodos <- Nodo
+  anio_ini <- "2024"
+  mes_ini <- "12"
+  dia_ini <- "01"
+  anio_fin <- "2024"
+  mes_fin <- "12"
+  dia_fin <- "07"
+  formato <- "JSON"
+  
+  # Construir la URL de invocación
+  url <- paste0("https://ws01.cenace.gob.mx:8082/SWPML/SIM/",
+                sistema, "/", proceso, "/", lista_nodos, "/",
+                anio_ini, "/", mes_ini, "/", dia_ini, "/",
+                anio_fin, "/", mes_fin, "/", dia_fin, "/",
+                formato)
+  
+  # Realizar la solicitud GET al servicio web
+  respuesta <- GET(url)
+  
+  # Convertir el JSON en un DataFrame
+  datos <- fromJSON(content(respuesta, "text"), flatten = TRUE)
+  
+  # Convertir la lista anidada "Resultados" en un DataFrame
+  resultados_df <- datos$Resultados
+  
+  # Utilizar lapply para extraer DataFrames contenidos en la columna 'lista_de_dataframes'
+  dataframes_extraidos <- lapply(resultados_df$Valores, function(x) as.data.frame(x))
+  
+  # Extraemos datos y los apendizamos
+  Datos_PML_01 <- rbind( Datos_PML_01, 
+                         as.data.frame( cbind( Nodo = Nodo,
+                                               Fecha = dataframes_extraidos[[1]]$fecha,
+                                               Hora = dataframes_extraidos[[1]]$hora,
+                                               pml = as.numeric(dataframes_extraidos[[1]]$pml) ) ) )
+  
+}
+
+```
+
+```{r Grupo02, echo=FALSE}
+
+Datos_PML_02 <- data.frame()
+
+for( Nodo in Datos_Nodos$CLAVE ){
+  # Definir los parámetros de la URL
+  sistema <- "SIN"
+  proceso <- "MDA"
+  lista_nodos <- Nodo
+  anio_ini <- "2024"
+  mes_ini <- "12"
+  dia_ini <- "08"
+  anio_fin <- "2024"
+  mes_fin <- "12"
+  dia_fin <- "14"
+  formato <- "JSON"
+  
+  # Construir la URL de invocación
+  url <- paste0("https://ws01.cenace.gob.mx:8082/SWPML/SIM/",
+                sistema, "/", proceso, "/", lista_nodos, "/",
+                anio_ini, "/", mes_ini, "/", dia_ini, "/",
+                anio_fin, "/", mes_fin, "/", dia_fin, "/",
+                formato)
+  
+  # Realizar la solicitud GET al servicio web
+  respuesta <- GET(url)
+  
+  # Convertir el JSON en un DataFrame
+  datos <- fromJSON(content(respuesta, "text"), flatten = TRUE)
+  
+  # Convertir la lista anidada "Resultados" en un DataFrame
+  resultados_df <- datos$Resultados
+  
+  # Utilizar lapply para extraer DataFrames contenidos en la columna 'lista_de_dataframes'
+  dataframes_extraidos <- lapply(resultados_df$Valores, function(x) as.data.frame(x))
+  
+  # Extraemos datos y los apendizamos
+  Datos_PML_02 <- rbind( Datos_PML_02, 
+                         as.data.frame( cbind( Nodo = Nodo,
+                                               Fecha = dataframes_extraidos[[1]]$fecha,
+                                               Hora = dataframes_extraidos[[1]]$hora,
+                                               pml = as.numeric(dataframes_extraidos[[1]]$pml) ) ) )
+  
+}
+
+```
+
+```{r Grupo03, echo=FALSE}
+
+Datos_PML_03 <- data.frame()
+
+for( Nodo in Datos_Nodos$CLAVE ){
+  # Definir los parámetros de la URL
+  sistema <- "SIN"
+  proceso <- "MDA"
+  lista_nodos <- Nodo
+  anio_ini <- "2024"
+  mes_ini <- "12"
+  dia_ini <- "15"
+  anio_fin <- "2024"
+  mes_fin <- "12"
+  dia_fin <- "21"
+  formato <- "JSON"
+  
+  # Construir la URL de invocación
+  url <- paste0("https://ws01.cenace.gob.mx:8082/SWPML/SIM/",
+                sistema, "/", proceso, "/", lista_nodos, "/",
+                anio_ini, "/", mes_ini, "/", dia_ini, "/",
+                anio_fin, "/", mes_fin, "/", dia_fin, "/",
+                formato)
+  
+  # Realizar la solicitud GET al servicio web
+  respuesta <- GET(url)
+  
+  # Convertir el JSON en un DataFrame
+  datos <- fromJSON(content(respuesta, "text"), flatten = TRUE)
+  
+  # Convertir la lista anidada "Resultados" en un DataFrame
+  resultados_df <- datos$Resultados
+  
+  # Utilizar lapply para extraer DataFrames contenidos en la columna 'lista_de_dataframes'
+  dataframes_extraidos <- lapply(resultados_df$Valores, function(x) as.data.frame(x))
+  
+  # Extraemos datos y los apendizamos
+  Datos_PML_03 <- rbind( Datos_PML_03, 
+                         as.data.frame( cbind( Nodo = Nodo,
+                                               Fecha = dataframes_extraidos[[1]]$fecha,
+                                               Hora = dataframes_extraidos[[1]]$hora,
+                                               pml = as.numeric(dataframes_extraidos[[1]]$pml) ) ) )
+  
+}
+
+```
+
+```{r Grupo04, echo=FALSE}
+
+Datos_PML_04 <- data.frame()
+
+for( Nodo in Datos_Nodos$CLAVE ){
+  # Definir los parámetros de la URL
+  sistema <- "SIN"
+  proceso <- "MDA"
+  lista_nodos <- Nodo
+  anio_ini <- "2024"
+  mes_ini <- "12"
+  dia_ini <- "22"
+  anio_fin <- "2024"
+  mes_fin <- "12"
+  dia_fin <- "28"
+  formato <- "JSON"
+  
+  # Construir la URL de invocación
+  url <- paste0("https://ws01.cenace.gob.mx:8082/SWPML/SIM/",
+                sistema, "/", proceso, "/", lista_nodos, "/",
+                anio_ini, "/", mes_ini, "/", dia_ini, "/",
+                anio_fin, "/", mes_fin, "/", dia_fin, "/",
+                formato)
+  
+  # Realizar la solicitud GET al servicio web
+  respuesta <- GET(url)
+  
+  # Convertir el JSON en un DataFrame
+  datos <- fromJSON(content(respuesta, "text"), flatten = TRUE)
+  
+  # Convertir la lista anidada "Resultados" en un DataFrame
+  resultados_df <- datos$Resultados
+  
+  # Utilizar lapply para extraer DataFrames contenidos en la columna 'lista_de_dataframes'
+  dataframes_extraidos <- lapply(resultados_df$Valores, function(x) as.data.frame(x))
+  
+  # Extraemos datos y los apendizamos
+  Datos_PML_04 <- rbind( Datos_PML_04, 
+                         as.data.frame( cbind( Nodo = Nodo,
+                                               Fecha = dataframes_extraidos[[1]]$fecha,
+                                               Hora = dataframes_extraidos[[1]]$hora,
+                                               pml = as.numeric(dataframes_extraidos[[1]]$pml) ) ) )
+  
+}
+
+```
+
+```{r Grupo05, echo=FALSE}
+
+Datos_PML_05 <- data.frame()
+
+for( Nodo in Datos_Nodos$CLAVE ){
+  # Definir los parámetros de la URL
+  sistema <- "SIN"
+  proceso <- "MDA"
+  lista_nodos <- Nodo
+  anio_ini <- "2024"
+  mes_ini <- "12"
+  dia_ini <- "29"
+  anio_fin <- "2024"
+  mes_fin <- "12"
+  dia_fin <- "31"
+  formato <- "JSON"
+  
+  # Construir la URL de invocación
+  url <- paste0("https://ws01.cenace.gob.mx:8082/SWPML/SIM/",
+                sistema, "/", proceso, "/", lista_nodos, "/",
+                anio_ini, "/", mes_ini, "/", dia_ini, "/",
+                anio_fin, "/", mes_fin, "/", dia_fin, "/",
+                formato)
+  
+  # Realizar la solicitud GET al servicio web
+  respuesta <- GET(url)
+  
+  # Convertir el JSON en un DataFrame
+  datos <- fromJSON(content(respuesta, "text"), flatten = TRUE)
+  
+  # Convertir la lista anidada "Resultados" en un DataFrame
+  resultados_df <- datos$Resultados
+  
+  # Utilizar lapply para extraer DataFrames contenidos en la columna 'lista_de_dataframes'
+  dataframes_extraidos <- lapply(resultados_df$Valores, function(x) as.data.frame(x))
+  
+  # Extraemos datos y los apendizamos
+  Datos_PML_05 <- rbind( Datos_PML_05, 
+                         as.data.frame( cbind( Nodo = Nodo,
+                                               Fecha = dataframes_extraidos[[1]]$fecha,
+                                               Hora = dataframes_extraidos[[1]]$hora,
+                                               pml = as.numeric(dataframes_extraidos[[1]]$pml) ) ) )
+  
+}
+
+```
+
+```{r Grupo06, echo=FALSE}
+
+Datos_PML_06 <- data.frame()
+
+for( Nodo in Datos_Nodos$CLAVE ){
+  # Definir los parámetros de la URL
+  sistema <- "SIN"
+  proceso <- "MDA"
+  lista_nodos <- Nodo
+  anio_ini <- "2025"
+  mes_ini <- "01"
+  dia_ini <- "01"
+  anio_fin <- "2025"
+  mes_fin <- "01"
+  dia_fin <- "07"
+  formato <- "JSON"
+  
+  # Construir la URL de invocación
+  url <- paste0("https://ws01.cenace.gob.mx:8082/SWPML/SIM/",
+                sistema, "/", proceso, "/", lista_nodos, "/",
+                anio_ini, "/", mes_ini, "/", dia_ini, "/",
+                anio_fin, "/", mes_fin, "/", dia_fin, "/",
+                formato)
+  
+  # Realizar la solicitud GET al servicio web
+  respuesta <- GET(url)
+  
+  # Convertir el JSON en un DataFrame
+  datos <- fromJSON(content(respuesta, "text"), flatten = TRUE)
+  
+  # Convertir la lista anidada "Resultados" en un DataFrame
+  resultados_df <- datos$Resultados
+  
+  # Utilizar lapply para extraer DataFrames contenidos en la columna 'lista_de_dataframes'
+  dataframes_extraidos <- lapply(resultados_df$Valores, function(x) as.data.frame(x))
+  
+  # Extraemos datos y los apendizamos
+  Datos_PML_06 <- rbind( Datos_PML_06, 
+                         as.data.frame( cbind( Nodo = Nodo,
+                                               Fecha = dataframes_extraidos[[1]]$fecha,
+                                               Hora = dataframes_extraidos[[1]]$hora,
+                                               pml = as.numeric(dataframes_extraidos[[1]]$pml) ) ) )
+  
+}
+
+```
+
+```{r Grupo07, echo=FALSE}
+
+Datos_PML_07 <- data.frame()
+
+for( Nodo in Datos_Nodos$CLAVE ){
+  # Definir los parámetros de la URL
+  sistema <- "SIN"
+  proceso <- "MDA"
+  lista_nodos <- Nodo
+  anio_ini <- "2025"
+  mes_ini <- "01"
+  dia_ini <- "08"
+  anio_fin <- "2025"
+  mes_fin <- "01"
+  dia_fin <- "14"
+  formato <- "JSON"
+  
+  # Construir la URL de invocación
+  url <- paste0("https://ws01.cenace.gob.mx:8082/SWPML/SIM/",
+                sistema, "/", proceso, "/", lista_nodos, "/",
+                anio_ini, "/", mes_ini, "/", dia_ini, "/",
+                anio_fin, "/", mes_fin, "/", dia_fin, "/",
+                formato)
+  
+  # Realizar la solicitud GET al servicio web
+  respuesta <- GET(url)
+  
+  # Convertir el JSON en un DataFrame
+  datos <- fromJSON(content(respuesta, "text"), flatten = TRUE)
+  
+  # Convertir la lista anidada "Resultados" en un DataFrame
+  resultados_df <- datos$Resultados
+  
+  # Utilizar lapply para extraer DataFrames contenidos en la columna 'lista_de_dataframes'
+  dataframes_extraidos <- lapply(resultados_df$Valores, function(x) as.data.frame(x))
+  
+  # Extraemos datos y los apendizamos
+  Datos_PML_07 <- rbind( Datos_PML_07, 
+                         as.data.frame( cbind( Nodo = Nodo,
+                                               Fecha = dataframes_extraidos[[1]]$fecha,
+                                               Hora = dataframes_extraidos[[1]]$hora,
+                                               pml = as.numeric(dataframes_extraidos[[1]]$pml) ) ) )
+  
+}
+
+```
+
+```{r Grupo08, echo=FALSE}
+
+Datos_PML_08 <- data.frame()
+
+for( Nodo in Datos_Nodos$CLAVE ){
+  # Definir los parámetros de la URL
+  sistema <- "SIN"
+  proceso <- "MDA"
+  lista_nodos <- Nodo
+  anio_ini <- "2025"
+  mes_ini <- "01"
+  dia_ini <- "15"
+  anio_fin <- "2025"
+  mes_fin <- "01"
+  dia_fin <- "21"
+  formato <- "JSON"
+  
+  # Construir la URL de invocación
+  url <- paste0("https://ws01.cenace.gob.mx:8082/SWPML/SIM/",
+                sistema, "/", proceso, "/", lista_nodos, "/",
+                anio_ini, "/", mes_ini, "/", dia_ini, "/",
+                anio_fin, "/", mes_fin, "/", dia_fin, "/",
+                formato)
+  
+  # Realizar la solicitud GET al servicio web
+  respuesta <- GET(url)
+  
+  # Convertir el JSON en un DataFrame
+  datos <- fromJSON(content(respuesta, "text"), flatten = TRUE)
+  
+  # Convertir la lista anidada "Resultados" en un DataFrame
+  resultados_df <- datos$Resultados
+  
+  # Utilizar lapply para extraer DataFrames contenidos en la columna 'lista_de_dataframes'
+  dataframes_extraidos <- lapply(resultados_df$Valores, function(x) as.data.frame(x))
+  
+  # Extraemos datos y los apendizamos
+  Datos_PML_08 <- rbind( Datos_PML_08, 
+                         as.data.frame( cbind( Nodo = Nodo,
+                                               Fecha = dataframes_extraidos[[1]]$fecha,
+                                               Hora = dataframes_extraidos[[1]]$hora,
+                                               pml = as.numeric(dataframes_extraidos[[1]]$pml) ) ) )
+  
+}
+
+```
+
+```{r Grupo09, echo=FALSE}
+
+Datos_PML_09 <- data.frame()
+
+for( Nodo in Datos_Nodos$CLAVE ){
+  # Definir los parámetros de la URL
+  sistema <- "SIN"
+  proceso <- "MDA"
+  lista_nodos <- Nodo
+  anio_ini <- "2025"
+  mes_ini <- "01"
+  dia_ini <- "22"
+  anio_fin <- "2025"
+  mes_fin <- "01"
+  dia_fin <- "28"
+  formato <- "JSON"
+  
+  # Construir la URL de invocación
+  url <- paste0("https://ws01.cenace.gob.mx:8082/SWPML/SIM/",
+                sistema, "/", proceso, "/", lista_nodos, "/",
+                anio_ini, "/", mes_ini, "/", dia_ini, "/",
+                anio_fin, "/", mes_fin, "/", dia_fin, "/",
+                formato)
+  
+  # Realizar la solicitud GET al servicio web
+  respuesta <- GET(url)
+  
+  # Convertir el JSON en un DataFrame
+  datos <- fromJSON(content(respuesta, "text"), flatten = TRUE)
+  
+  # Convertir la lista anidada "Resultados" en un DataFrame
+  resultados_df <- datos$Resultados
+  
+  # Utilizar lapply para extraer DataFrames contenidos en la columna 'lista_de_dataframes'
+  dataframes_extraidos <- lapply(resultados_df$Valores, function(x) as.data.frame(x))
+  
+  # Extraemos datos y los apendizamos
+  Datos_PML_09 <- rbind( Datos_PML_09, 
+                         as.data.frame( cbind( Nodo = Nodo,
+                                               Fecha = dataframes_extraidos[[1]]$fecha,
+                                               Hora = dataframes_extraidos[[1]]$hora,
+                                               pml = as.numeric(dataframes_extraidos[[1]]$pml) ) ) )
+  
+}
+
+```
+
+```{r Grupo10, echo=FALSE}
+
+Datos_PML_10 <- data.frame()
+
+for( Nodo in Datos_Nodos$CLAVE ){
+  # Definir los parámetros de la URL
+  sistema <- "SIN"
+  proceso <- "MDA"
+  lista_nodos <- Nodo
+  anio_ini <- "2025"
+  mes_ini <- "01"
+  dia_ini <- "29"
+  anio_fin <- "2025"
+  mes_fin <- "01"
+  dia_fin <- "31"
+  formato <- "JSON"
+  
+  # Construir la URL de invocación
+  url <- paste0("https://ws01.cenace.gob.mx:8082/SWPML/SIM/",
+                sistema, "/", proceso, "/", lista_nodos, "/",
+                anio_ini, "/", mes_ini, "/", dia_ini, "/",
+                anio_fin, "/", mes_fin, "/", dia_fin, "/",
+                formato)
+  
+  # Realizar la solicitud GET al servicio web
+  respuesta <- GET(url)
+  
+  # Convertir el JSON en un DataFrame
+  datos <- fromJSON(content(respuesta, "text"), flatten = TRUE)
+  
+  # Convertir la lista anidada "Resultados" en un DataFrame
+  resultados_df <- datos$Resultados
+  
+  # Utilizar lapply para extraer DataFrames contenidos en la columna 'lista_de_dataframes'
+  dataframes_extraidos <- lapply(resultados_df$Valores, function(x) as.data.frame(x))
+  
+  # Extraemos datos y los apendizamos
+  Datos_PML_10 <- rbind( Datos_PML_10, 
+                         as.data.frame( cbind( Nodo = Nodo,
+                                               Fecha = dataframes_extraidos[[1]]$fecha,
+                                               Hora = dataframes_extraidos[[1]]$hora,
+                                               pml = as.numeric(dataframes_extraidos[[1]]$pml) ) ) )
+  
+}
+
+```
+
+```{r GRUPOS, echo=FALSE}
+
+Datos_PML <- rbind( Datos_PML_01, Datos_PML_02, Datos_PML_03, Datos_PML_04, Datos_PML_05,
+                    Datos_PML_06, Datos_PML_07, Datos_PML_08, Datos_PML_09, Datos_PML_10 )
+
+Datos_PML_Wide <- Datos_PML %>% pivot_wider( names_from = Nodo, 
+                                        values_from = pml  )
+
+```
+
+```{r medias, echo=FALSE, warning = FALSE}
+
+Datos_PML_Wide[ , c(3:122)] <- lapply(Datos_PML_Wide[ , c(3:122)], as.numeric)
+
+medias_PML <- data.frame( colMeans( Datos_PML_Wide[ , c(3:122)] ) ) 
+
+names(medias_PML) <- c("Precio Promedio")
+
+datatable( medias_PML, rownames = T, options = list(ordering = T), 
+               filter = list( position = 'top', clear = T )) %>% 
+      formatCurrency( c(1), currency = "$", interval = 3, mark = ",", digits = 2)
+
+```
+
+## Save Data
+
+```{r save}
+
+# Guardar el dataframe en un archivo CSV
+write.csv(Datos_PML, "Datos_PML.csv", row.names = FALSE)
+
+write.csv(Datos_PML_Wide, "Datos_PML_Wide.csv", row.names = FALSE)
+
+```
+
+
+FIN
