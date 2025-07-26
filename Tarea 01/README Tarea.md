@@ -64,3 +64,6 @@ El inversionista busca zonas con baja volatilidad de precios o con tendencias as
 • Calidad de visualizaciones y presentación de resultados.
 • Coherencia de recomendaciones con base en la evidencia.
 
+## Mandar Entregables a:
+benjov@ciencias.unam.mx
+
