@@ -67,3 +67,6 @@ Evaluar el conocimiento adquirido sobre técnicas de procesamiento de lenguaje n
 6. Conclusiones
 	•	Contribuciones del análisis.
 	•	Posibles usos en políticas públicas, ONGs, medios, etc.
+
+
+### Fecha de entrega: 24 de agosto, enaviar código y reporte a benjov@ciencias.unam.mx
